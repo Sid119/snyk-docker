@@ -1,40 +1,76 @@
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
 name: "CodeQL"
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
+    branches: [ "main" ]
   schedule:
-    - cron: '15 5 * * 3'
+    - cron: '27 19 * * 5'
 
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    # Runner size impacts CodeQL analysis time. To learn more, please see:
+    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
+    #   - https://gh.io/supported-runners-and-hardware-resources
+    #   - https://gh.io/using-larger-runners
+    # Consider using larger runners for possible analysis time improvements.
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    timeout-minutes: ${{ (matrix.language == 'swift' && 120) || 360 }}
     permissions:
+      # required for all workflows
       security-events: write
+
+      # only required for workflows in private repositories
       actions: read
+      contents: read
 
     strategy:
       fail-fast: false
       matrix:
-        language: [java-kotlin]
-
-    # Specify the container in which actions will run
-    container:
-      image: codeql-container:f0f91db
+        language: [ 'java-kotlin' ]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Pull the private Docker image
+        run: docker pull abc123119/test:latest
+        # Replace registry.example.com/my-private-image:tag with the actual path to your private image
+
+      - name: Use Docker image
+        uses: docker://abc123119/test:latest
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+
       - name: Build
         run: |
           ./configure
           make
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
